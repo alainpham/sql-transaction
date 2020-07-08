@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+	http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+	http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
+	">
+    
+    <camelContext id="sql-transaction" xmlns="http://camel.apache.org/schema/spring">
+
+		<rest id="restsvc" path="/restsvc" bindingMode="off" produces="application/json">
+			<get id="getPing" uri="/ping">
+				<route id="getPingRoute">
+					<setBody>
+						<constant>{"msg" : "ok"}</constant>
+					</setBody>
+				</route>
+			</get>
+		</rest>
+
+		<route id="basicRoute">
+			<from id="basicRouteStarter" uri="direct:start" />
+			<transform>
+				<simple>Hello ${body}</simple>
+			</transform>
+			<log message="${body}"></log>
+		</route>
+
+
+		<route id="http-receiver">
+			<from id="http-receiver-starter" uri="servlet://ping" />
+			<setHeader headerName="Content-Type">
+				<constant>application/json</constant>
+			</setHeader>
+			<setBody>
+				<simple>{"msg" : "HELLO"}</simple>
+			</setBody>
+			<inOnly uri="jms:queue:app.queue"/>
+		</route>
+
+		<route>
+			<from uri="jms:queue:app.queue"/>
+			<transacted/>
+			<log message="${headers}"/>
+		</route>
+
+
+
+		<route>
+			<from uri="servlet:test"/>
+			<onException>
+				<exception>java.io.IOException</exception>
+				<exception>java.sql.SQLException</exception>
+				<redeliveryPolicy logRetryStackTrace="true"	maximumRedeliveries="2" redeliveryDelay="6000"/>
+				<log message="ENVOYER MAIL ERREUR"/>
+			</onException>
+			<transacted/>
+			<to uri="sql:INSERT INTO account (email) VALUES('alain1@redhat.com')"/>
+			<to uri="sql:INSERT INTO account (email) VALUES('alain2@redhat.com')"/>
+			<to uri="sql:INSERT INTO account (email) VALUES('alain3@redhat.com')"/>
+			<to uri="sql:INSERT INTO account (email) VALUES('alain4@redhat.com')"/>
+			<setBody>
+				<constant>OK</constant>
+			</setBody>
+		</route>
+
+	</camelContext>
+</beans>
