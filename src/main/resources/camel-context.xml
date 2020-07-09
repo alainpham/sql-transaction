@@ -19,11 +19,13 @@
 		</rest>
 
 		<route id="basicRoute">
-			<from id="basicRouteStarter" uri="direct:start" />
+			<from id="basicRouteStarter" uri="servlet:start" />
+			<!-- <from uri="timer:timerName?period=30000"></from> -->
 			<transform>
 				<simple>Hello ${body}</simple>
 			</transform>
 			<log message="${body}"></log>
+			<to uri="direct:inserts" />
 		</route>
 
 
@@ -35,30 +37,38 @@
 			<setBody>
 				<simple>{"msg" : "HELLO"}</simple>
 			</setBody>
-			<inOnly uri="jms:queue:app.queue"/>
+			<inOnly uri="jms:queue:app.queue" />
 		</route>
 
 		<route>
-			<from uri="jms:queue:app.queue"/>
-			<transacted/>
-			<log message="${headers}"/>
+			<from uri="jms:queue:app.queue" />
+			<log message="${headers} "></log>
+			<log message="${exchange.properties}"></log>
+			<log message="MESSAGE RECEIVED" />
+			<to uri="direct:inserts" />
+			<log message="DONE CONSUMING ${body}"/>
 		</route>
 
-
-
 		<route>
-			<from uri="servlet:test"/>
-			<onException>
+			<from uri="direct:inserts" />
+			<onException >
 				<exception>java.io.IOException</exception>
 				<exception>java.sql.SQLException</exception>
-				<redeliveryPolicy logRetryStackTrace="true"	maximumRedeliveries="2" redeliveryDelay="6000"/>
-				<log message="ENVOYER MAIL ERREUR"/>
+				<redeliveryPolicy logRetryStackTrace="true" logRetryAttempted="true" maximumRedeliveries="2" redeliveryDelay="3000" />
+				<continued>
+					<constant>true</constant>
+				</continued>
+				<log message="ENVOYER MAIL ERREUR" />
 			</onException>
-			<transacted/>
-			<to uri="sql:INSERT INTO account (email) VALUES('alain1@redhat.com')"/>
-			<to uri="sql:INSERT INTO account (email) VALUES('alain2@redhat.com')"/>
-			<to uri="sql:INSERT INTO account (email) VALUES('alain3@redhat.com')"/>
-			<to uri="sql:INSERT INTO account (email) VALUES('alain4@redhat.com')"/>
+			<transacted ref="PROPAGATION_REQUIRES_NEW"/>
+			<log message="Trying to insert 1"/>
+			<to uri="sql:INSERT INTO account (email) VALUES('alain1@redhat.com')" />
+			<log message="Trying to insert 2"/>
+			<to uri="sql:INSERT INTO account (email) VALUES('alain2@redhat.com')" />
+			<log message="Trying to insert 3"/>
+			<to uri="sql:INSERT INTO account (email) VALUES('alain3@redhat.com')" />
+			<log message="Trying to insert 4"/>
+			<to uri="sql:INSERT INTO account (email) VALUES('alain4@redhat.com')" />
 			<setBody>
 				<constant>OK</constant>
 			</setBody>
